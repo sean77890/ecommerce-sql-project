@@ -1,19 +1,23 @@
 # SQL Shop
 
-A mini e-commerce website built to practice relational database design and SQL — user accounts, a product catalog, a persistent cart, and a transactional checkout flow, all backed by SQLite.
+**Live demo:** [sql-shop.onrender.com](https://sql-shop.onrender.com)
+(free-tier hosting — the first request after a few minutes of inactivity can
+take 30–60s to wake up)
+
+A mini e-commerce website built to practice relational database design and SQL — user accounts, a product catalog, a persistent cart, and a transactional checkout flow, all backed by PostgreSQL.
 
 ## Features
 
 - **Product catalog** — browse all products or filter by category
 - **User accounts** — register and log in with hashed passwords (scrypt, no plaintext storage)
 - **Persistent cart** — add, update, and remove items; cart is tied to the logged-in user, not a cookie
-- **Checkout** — placing an order runs as a single SQL transaction: it creates the order and its line items, decrements product stock, and clears the cart. If anything fails (e.g. insufficient stock), the whole transaction rolls back
+- **Checkout** — placing an order runs as a single SQL transaction: it creates the order and its line items, decrements product stock, and clears the cart. If anything fails (e.g. insufficient stock), the whole transaction rolls back. The stock check locks the relevant `products` rows with `FOR UPDATE`, so two concurrent checkouts can't both read the same stock and oversell it
 - **Order history** — view past orders and their line-item detail
 
 ## Tech Stack
 
 - **Backend:** Node.js, Express
-- **Database:** SQLite via Node's built-in [`node:sqlite`](https://nodejs.org/api/sqlite.html) module (no native build step required)
+- **Database:** PostgreSQL, via [`pg`](https://node-postgres.com/) — hosted on [Neon](https://neon.tech) (serverless Postgres, free tier)
 - **Views:** EJS (server-rendered), plain CSS
 
 ## Database Schema
@@ -45,15 +49,24 @@ quantity                  total_cents            quantity
 
 ## Getting Started
 
-Requires Node.js 22.5+ (for the built-in `node:sqlite` module).
+Requires Node.js 18+ and a Postgres database — [Neon](https://neon.tech) has a
+free tier with no credit card required and works well for this.
 
 ```bash
 npm install
-npm run seed   # one-time: creates db/store.db and loads sample categories/products
+cp .env.example .env   # then fill in DATABASE_URL with your Postgres connection string
+npm run seed            # one-time: creates the schema and loads sample categories/products
 npm start
 ```
 
 Then visit **http://localhost:3000**.
+
+## Deployment
+
+The live demo runs on **Render** (`render.yaml`) with its Postgres database
+on **Neon**, both free tier. `DATABASE_URL` and `SESSION_SECRET` are read
+from environment variables (`.env` locally, Render's dashboard in
+production) — no code changes needed between dev and prod.
 
 ## Project Structure
 
