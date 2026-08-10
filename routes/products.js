@@ -1,52 +1,57 @@
 const express = require('express');
-const db = require('../db/database');
+const { pool } = require('../db/database');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  const categories = db.prepare('SELECT * FROM categories ORDER BY name').all();
-  const { category } = req.query;
+router.get('/', async (req, res, next) => {
+  try {
+    const { rows: categories } = await pool.query('SELECT * FROM categories ORDER BY name');
+    const { category } = req.query;
 
-  let products;
-  if (category) {
-    products = db
-      .prepare(
+    let products;
+    if (category) {
+      ({ rows: products } = await pool.query(
         `SELECT products.*, categories.name AS category_name
          FROM products
          JOIN categories ON categories.id = products.category_id
-         WHERE categories.name = ?
-         ORDER BY products.name`
-      )
-      .all(category);
-  } else {
-    products = db
-      .prepare(
+         WHERE categories.name = $1
+         ORDER BY products.name`,
+        [category]
+      ));
+    } else {
+      ({ rows: products } = await pool.query(
         `SELECT products.*, categories.name AS category_name
          FROM products
          JOIN categories ON categories.id = products.category_id
          ORDER BY products.name`
-      )
-      .all();
+      ));
+    }
+
+    res.render('products/index', { products, categories, activeCategory: category || null });
+  } catch (err) {
+    next(err);
   }
-
-  res.render('products/index', { products, categories, activeCategory: category || null });
 });
 
-router.get('/:id', (req, res) => {
-  const product = db
-    .prepare(
+router.get('/:id', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
       `SELECT products.*, categories.name AS category_name
        FROM products
        JOIN categories ON categories.id = products.category_id
-       WHERE products.id = ?`
-    )
-    .get(req.params.id);
+       WHERE products.id = $1`,
+      [req.params.id]
+    );
+    const product = rows[0];
 
-  if (!product) {
-    return res.status(404).render('errors/404');
+    if (!product) {
+      return res.status(404).render('errors/404');
+    }
+
+    res.render('products/show', { product });
+  } catch (err) {
+    next(err);
   }
-
-  res.render('products/show', { product });
 });
 
 module.exports = router;

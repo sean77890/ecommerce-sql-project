@@ -1,79 +1,96 @@
 const express = require('express');
-const db = require('../db/database');
+const { pool } = require('../db/database');
 const requireAuth = require('../middleware/requireAuth');
 
 const router = express.Router();
 
 router.use(requireAuth);
 
-function getCartItems(userId) {
-  return db
-    .prepare(
-      `SELECT cart_items.id, cart_items.quantity, products.id AS product_id,
-              products.name, products.price_cents, products.image_url, products.stock_qty
-       FROM cart_items
-       JOIN products ON products.id = cart_items.product_id
-       WHERE cart_items.user_id = ?
-       ORDER BY cart_items.id`
-    )
-    .all(userId);
+async function getCartItems(userId) {
+  const { rows } = await pool.query(
+    `SELECT cart_items.id, cart_items.quantity, products.id AS product_id,
+            products.name, products.price_cents, products.image_url, products.stock_qty
+     FROM cart_items
+     JOIN products ON products.id = cart_items.product_id
+     WHERE cart_items.user_id = $1
+     ORDER BY cart_items.id`,
+    [userId]
+  );
+  return rows;
 }
 
-router.get('/', (req, res) => {
-  const items = getCartItems(req.session.userId);
-  const subtotalCents = items.reduce((sum, item) => sum + item.price_cents * item.quantity, 0);
-  res.render('cart/index', { items, subtotalCents });
+router.get('/', async (req, res, next) => {
+  try {
+    const items = await getCartItems(req.session.userId);
+    const subtotalCents = items.reduce((sum, item) => sum + item.price_cents * item.quantity, 0);
+    res.render('cart/index', { items, subtotalCents });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/add', (req, res) => {
-  const productId = Number(req.body.product_id);
-  const quantity = Math.max(1, Number(req.body.quantity) || 1);
+router.post('/add', async (req, res, next) => {
+  try {
+    const productId = Number(req.body.product_id);
+    const quantity = Math.max(1, Number(req.body.quantity) || 1);
 
-  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
-  if (!product) {
-    return res.status(404).render('errors/404');
-  }
+    const { rows: productRows } = await pool.query('SELECT * FROM products WHERE id = $1', [productId]);
+    const product = productRows[0];
+    if (!product) {
+      return res.status(404).render('errors/404');
+    }
 
-  const existing = db
-    .prepare('SELECT * FROM cart_items WHERE user_id = ? AND product_id = ?')
-    .get(req.session.userId, productId);
-
-  if (existing) {
-    const newQty = Math.min(existing.quantity + quantity, product.stock_qty);
-    db.prepare('UPDATE cart_items SET quantity = ? WHERE id = ?').run(newQty, existing.id);
-  } else {
-    const qty = Math.min(quantity, product.stock_qty);
-    db.prepare('INSERT INTO cart_items (user_id, product_id, quantity) VALUES (?, ?, ?)').run(
-      req.session.userId,
-      productId,
-      qty
+    const { rows: existingRows } = await pool.query(
+      'SELECT * FROM cart_items WHERE user_id = $1 AND product_id = $2',
+      [req.session.userId, productId]
     );
-  }
+    const existing = existingRows[0];
 
-  res.redirect('/cart');
+    if (existing) {
+      const newQty = Math.min(existing.quantity + quantity, product.stock_qty);
+      await pool.query('UPDATE cart_items SET quantity = $1 WHERE id = $2', [newQty, existing.id]);
+    } else {
+      const qty = Math.min(quantity, product.stock_qty);
+      await pool.query(
+        'INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, $3)',
+        [req.session.userId, productId, qty]
+      );
+    }
+
+    res.redirect('/cart');
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/update', (req, res) => {
-  const itemId = Number(req.body.item_id);
-  const quantity = Number(req.body.quantity);
+router.post('/update', async (req, res, next) => {
+  try {
+    const itemId = Number(req.body.item_id);
+    const quantity = Number(req.body.quantity);
 
-  if (quantity <= 0) {
-    db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, req.session.userId);
-  } else {
-    db.prepare('UPDATE cart_items SET quantity = ? WHERE id = ? AND user_id = ?').run(
-      quantity,
-      itemId,
-      req.session.userId
-    );
+    if (quantity <= 0) {
+      await pool.query('DELETE FROM cart_items WHERE id = $1 AND user_id = $2', [itemId, req.session.userId]);
+    } else {
+      await pool.query(
+        'UPDATE cart_items SET quantity = $1 WHERE id = $2 AND user_id = $3',
+        [quantity, itemId, req.session.userId]
+      );
+    }
+
+    res.redirect('/cart');
+  } catch (err) {
+    next(err);
   }
-
-  res.redirect('/cart');
 });
 
-router.post('/remove', (req, res) => {
-  const itemId = Number(req.body.item_id);
-  db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, req.session.userId);
-  res.redirect('/cart');
+router.post('/remove', async (req, res, next) => {
+  try {
+    const itemId = Number(req.body.item_id);
+    await pool.query('DELETE FROM cart_items WHERE id = $1 AND user_id = $2', [itemId, req.session.userId]);
+    res.redirect('/cart');
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;

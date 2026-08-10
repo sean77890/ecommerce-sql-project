@@ -1,4 +1,5 @@
-const db = require('./database');
+require('dotenv').config();
+const { pool, initSchema } = require('./database');
 
 const categories = ['Electronics', 'Books', 'Home & Kitchen', 'Clothing', 'Sports & Outdoors'];
 
@@ -17,40 +18,50 @@ const products = [
   { name: 'Insulated Water Bottle', category: 'Sports & Outdoors', description: '32oz stainless steel bottle, keeps drinks cold 24 hours.', price_cents: 2199, stock_qty: 55, image_url: 'https://picsum.photos/seed/bottle/400/300' }
 ];
 
-function seed() {
-  const existing = db.prepare('SELECT COUNT(*) AS count FROM products').get();
-  if (existing.count > 0) {
-    console.log(`Database already has ${existing.count} products — skipping seed.`);
+async function seed() {
+  await initSchema();
+
+  const { rows: existingRows } = await pool.query('SELECT COUNT(*) AS count FROM products');
+  const existingCount = Number(existingRows[0].count);
+  if (existingCount > 0) {
+    console.log(`Database already has ${existingCount} products — skipping seed.`);
     return;
   }
 
-  const insertCategory = db.prepare('INSERT INTO categories (name) VALUES (?)');
-  const insertProduct = db.prepare(`
-    INSERT INTO products (category_id, name, description, price_cents, image_url, stock_qty)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  const seedTxn = db.transaction(() => {
     const categoryIds = {};
     for (const name of categories) {
-      const info = insertCategory.run(name);
-      categoryIds[name] = info.lastInsertRowid;
+      const { rows } = await client.query(
+        'INSERT INTO categories (name) VALUES ($1) RETURNING id',
+        [name]
+      );
+      categoryIds[name] = rows[0].id;
     }
 
     for (const p of products) {
-      insertProduct.run(
-        categoryIds[p.category],
-        p.name,
-        p.description,
-        p.price_cents,
-        p.image_url,
-        p.stock_qty
+      await client.query(
+        `INSERT INTO products (category_id, name, description, price_cents, image_url, stock_qty)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [categoryIds[p.category], p.name, p.description, p.price_cents, p.image_url, p.stock_qty]
       );
     }
-  });
 
-  seedTxn();
-  console.log(`Seeded ${categories.length} categories and ${products.length} products.`);
+    await client.query('COMMIT');
+    console.log(`Seeded ${categories.length} categories and ${products.length} products.`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
-seed();
+seed()
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(() => pool.end());
