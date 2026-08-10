@@ -1,0 +1,32 @@
+<%- include('../partials/header', { title: 'Your Orders - SQL Shop' }) %>
+
+<h1>Your Orders</h1>
+
+<% if (orders.length === 0) { %>
+  <p>You haven't placed any orders yet. <a href="/products">Start shopping</a>.</p>
+<% } else { %>
+  <table class="cart-table">
+    <thead>
+      <tr>
+        <th>Order #</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% orders.forEach(function(order) { %>
+        <tr>
+          <td>#<%= order.id %></td>
+          <td><%= order.created_at %></td>
+          <td><%= order.status %></td>
+          <td>$<%= (order.total_cents / 100).toFixed(2) %></td>
+          <td><a href="/orders/<%= order.id %>">View</a></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,56 @@
+<%- include('../partials/header', { title: 'Your Cart - SQL Shop' }) %>
+
+<h1>Your Cart</h1>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <p class="error"><%= error %></p>
+<% } %>
+
+<% if (items.length === 0) { %>
+  <p>Your cart is empty. <a href="/products">Browse products</a>.</p>
+<% } else { %>
+  <table class="cart-table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Line Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% items.forEach(function(item) { %>
+        <tr>
+          <td>
+            <a href="/products/<%= item.product_id %>"><%= item.name %></a>
+          </td>
+          <td>$<%= (item.price_cents / 100).toFixed(2) %></td>
+          <td>
+            <form action="/cart/update" method="POST" class="inline-form">
+              <input type="hidden" name="item_id" value="<%= item.id %>" />
+              <input type="number" name="quantity" value="<%= item.quantity %>" min="0" max="<%= item.stock_qty %>" />
+              <button type="submit" class="btn small">Update</button>
+            </form>
+          </td>
+          <td>$<%= ((item.price_cents * item.quantity) / 100).toFixed(2) %></td>
+          <td>
+            <form action="/cart/remove" method="POST" class="inline-form">
+              <input type="hidden" name="item_id" value="<%= item.id %>" />
+              <button type="submit" class="link-button">Remove</button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <div class="cart-summary">
+    <p class="price large">Subtotal: $<%= (subtotalCents / 100).toFixed(2) %></p>
+    <form action="/orders/checkout" method="POST">
+      <button type="submit" class="btn primary">Checkout</button>
+    </form>
+  </div>
+<% } %>
+
+<%- include('../partials/footer') %>

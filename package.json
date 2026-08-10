@@ -1,0 +1,18 @@
+{
+  "name": "ecommerce-sql-project",
+  "version": "1.0.0",
+  "description": "A mini e-commerce website backed by SQLite, built with Express.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node db/seed.js"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0"
+  }
+}
