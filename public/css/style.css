@@ -219,6 +219,38 @@ main.container {
   font-size: 0.85rem;
 }
 
+.btn.danger {
+  background: #fff;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  margin-top: 16px;
+}
+
+.btn.danger:hover {
+  background: var(--color-error);
+  color: #fff;
+}
+
+.status-placed {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.status-cancelled {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}
+
+.order-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-actions form {
+  display: inline;
+}
+
 .link-button {
   background: none;
   border: none;

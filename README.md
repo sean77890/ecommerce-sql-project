@@ -13,6 +13,7 @@ A mini e-commerce website built to practice relational database design and SQL �
 - **Persistent cart** — add, update, and remove items; cart is tied to the logged-in user, not a cookie
 - **Checkout** — placing an order runs as a single SQL transaction: it creates the order and its line items, decrements product stock, and clears the cart. If anything fails (e.g. insufficient stock), the whole transaction rolls back. The stock check locks the relevant `products` rows with `FOR UPDATE`, so two concurrent checkouts can't both read the same stock and oversell it
 - **Order history** — view past orders and their line-item detail
+- **Order cancellation** — cancel a still-`placed` order and its items are returned to stock, also inside a transaction. Locks the order row with `FOR UPDATE` so double-clicking cancel can't restock the same order twice
 
 ## Tech Stack
 

@@ -79,6 +79,54 @@ router.post('/checkout', async (req, res, next) => {
   }
 });
 
+router.post('/:id/cancel', async (req, res, next) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Lock the order row so two concurrent cancel clicks can't both pass
+    // the "still placed" check and restock the same items twice.
+    const { rows: orderRows } = await client.query(
+      'SELECT * FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [req.params.id, req.session.userId]
+    );
+    const order = orderRows[0];
+
+    if (!order) {
+      await client.query('ROLLBACK');
+      return res.status(404).render('errors/404');
+    }
+
+    if (order.status !== 'placed') {
+      await client.query('ROLLBACK');
+      return res.redirect(`/orders/${order.id}`);
+    }
+
+    const { rows: items } = await client.query(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+      [order.id]
+    );
+
+    for (const item of items) {
+      await client.query('UPDATE products SET stock_qty = stock_qty + $1 WHERE id = $2', [
+        item.quantity,
+        item.product_id
+      ]);
+    }
+
+    await client.query("UPDATE orders SET status = 'cancelled' WHERE id = $1", [order.id]);
+
+    await client.query('COMMIT');
+    res.redirect(`/orders/${order.id}`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const { rows: orders } = await pool.query(
