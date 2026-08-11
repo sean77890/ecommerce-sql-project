@@ -15,6 +15,8 @@ const pool = new Pool({
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
+// Runs schema.sql against the connected database, creating any tables/indexes
+// that don't already exist yet. Safe to call on every server start.
 async function initSchema() {
   await pool.query(fs.readFileSync(SCHEMA_PATH, 'utf8'));
 }

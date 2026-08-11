@@ -26,7 +26,8 @@ app.use(
   })
 );
 
-// Expose session/cart info to every view
+// Makes the logged-in user's id and total cart item count available to every
+// view (e.g. for the header's cart badge) without each route re-fetching it.
 app.use(async (req, res, next) => {
   res.locals.userId = req.session.userId || null;
   if (req.session.userId) {
@@ -62,6 +63,7 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong on our end.');
 });
 
+// Ensures the database schema exists, then starts the HTTP server.
 async function start() {
   await initSchema();
   app.listen(PORT, () => {

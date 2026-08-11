@@ -18,6 +18,9 @@ const products = [
   { name: 'Insulated Water Bottle', category: 'Sports & Outdoors', description: '32oz stainless steel bottle, keeps drinks cold 24 hours.', price_cents: 2199, stock_qty: 55, image_url: 'https://picsum.photos/seed/bottle/400/300' }
 ];
 
+// Populates an empty database with the demo category/product catalog. No-ops
+// if products already exist, so it's safe to run again against a live database
+// without duplicating rows.
 async function seed() {
   await initSchema();
 

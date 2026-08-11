@@ -6,6 +6,8 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+// Fetches the given user's cart rows joined with product details (name,
+// price, stock) so views can render them without a second lookup.
 async function getCartItems(userId) {
   const { rows } = await pool.query(
     `SELECT cart_items.id, cart_items.quantity, products.id AS product_id,
@@ -19,6 +21,7 @@ async function getCartItems(userId) {
   return rows;
 }
 
+// Shows the current user's cart with a computed subtotal.
 router.get('/', async (req, res, next) => {
   try {
     const items = await getCartItems(req.session.userId);
@@ -29,6 +32,8 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Adds a product to the cart, or increases its quantity if it's already
+// there. Quantity is clamped to available stock either way.
 router.post('/add', async (req, res, next) => {
   try {
     const productId = Number(req.body.product_id);
@@ -63,6 +68,8 @@ router.post('/add', async (req, res, next) => {
   }
 });
 
+// Changes a cart line's quantity, or removes the line entirely if the new
+// quantity is zero or less.
 router.post('/update', async (req, res, next) => {
   try {
     const itemId = Number(req.body.item_id);
@@ -83,6 +90,7 @@ router.post('/update', async (req, res, next) => {
   }
 });
 
+// Removes a single line item from the cart.
 router.post('/remove', async (req, res, next) => {
   try {
     const itemId = Number(req.body.item_id);

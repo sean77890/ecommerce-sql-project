@@ -6,6 +6,10 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+// Converts the current user's cart into an order inside a single transaction:
+// locks and validates stock, creates the order and its line items, decrements
+// stock, and clears the cart. Any failure (empty cart, insufficient stock, or
+// an unexpected error) rolls the whole transaction back.
 router.post('/checkout', async (req, res, next) => {
   const userId = req.session.userId;
   const client = await pool.connect();
@@ -79,6 +83,9 @@ router.post('/checkout', async (req, res, next) => {
   }
 });
 
+// Cancels a still-"placed" order and returns its items to stock, inside a
+// transaction. No-ops (redirects without changes) if the order is already
+// cancelled or doesn't belong to the current user.
 router.post('/:id/cancel', async (req, res, next) => {
   const client = await pool.connect();
 
@@ -127,6 +134,7 @@ router.post('/:id/cancel', async (req, res, next) => {
   }
 });
 
+// Lists the current user's orders, most recent first.
 router.get('/', async (req, res, next) => {
   try {
     const { rows: orders } = await pool.query(
@@ -139,6 +147,8 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Shows a single order's detail (line items included), scoped to the current
+// user so one account can't view another's order by guessing an id.
 router.get('/:id', async (req, res, next) => {
   try {
     const { rows: orderRows } = await pool.query(

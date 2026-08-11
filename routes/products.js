@@ -3,6 +3,7 @@ const { pool } = require('../db/database');
 
 const router = express.Router();
 
+// Lists all products, optionally filtered to a single category via ?category=.
 router.get('/', async (req, res, next) => {
   try {
     const { rows: categories } = await pool.query('SELECT * FROM categories ORDER BY name');
@@ -33,6 +34,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Shows a single product's detail page, or 404s if the id doesn't exist.
 router.get('/:id', async (req, res, next) => {
   try {
     const { rows } = await pool.query(

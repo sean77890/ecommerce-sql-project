@@ -4,10 +4,13 @@ const { hashPassword, verifyPassword } = require('../utils/password');
 
 const router = express.Router();
 
+// Renders the empty registration form.
 router.get('/register', (req, res) => {
   res.render('auth/register', { error: null });
 });
 
+// Creates a new user account, rejecting duplicate emails, then logs the new
+// user in immediately by storing their id in the session.
 router.post('/register', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -34,10 +37,13 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
+// Renders the empty login form.
 router.get('/login', (req, res) => {
   res.render('auth/login', { error: null });
 });
 
+// Verifies email/password against the stored hash and, on success, starts a
+// session by storing the user's id.
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -55,6 +61,7 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+// Destroys the session, logging the current user out.
 router.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
